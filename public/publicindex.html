@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMEEP - Sistema de Inspecciones</title>
+    <style>
+        :root {
+            --primary: #0369a1;
+            --primary-dark: #0c4a6e;
+            --primary-light: #e0f2fe;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --info: #2563eb;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --gray-900: #0f172a;
+            --sidebar-width: 260px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--gray-100); color: var(--gray-700); }
+
+        /* SIDEBAR */
+        .sidebar {
+            position: fixed; left: 0; top: 0; width: var(--sidebar-width); height: 100vh;
+            background: linear-gradient(180deg, var(--primary-dark), var(--primary));
+            color: white; z-index: 1000; transition: transform 0.3s;
+            overflow-y: auto;
+        }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header h2 { font-size: 1.5em; }
+        .sidebar-header small { opacity: 0.7; font-size: 0.75em; }
+        .nav-menu { padding: 10px 0; }
+        .nav-item {
+            display: flex; align-items: center; padding: 14px 20px; cursor: pointer;
+            transition: all 0.2s; color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95em;
+        }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.15); color: white; }
+        .nav-item .icon { margin-right: 12px; font-size: 1.2em; width: 24px; text-align: center; }
+        .nav-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 10px 20px; }
+        .user-info { padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; }
+        .user-info .name { font-weight: 600; font-size: 0.9em; }
+        .user-info .role { font-size: 0.75em; opacity: 0.7; text-transform: uppercase; }
+        .btn-logout {
+            display: block; width: calc(100% - 40px); margin: 10px 20px; padding: 10px;
+            background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px; cursor: pointer; text-align: center; font-size: 0.9em;
+        }
+        .btn-logout:hover { background: rgba(220,38,38,0.5); }
+
+        /* MAIN */
+        .main-content {
+            margin-left: var(--sidebar-width); padding: 20px; min-height: 100vh; transition: margin-left 0.3s;
+        }
+        .main-content.expanded { margin-left: 0; }
+
+        /* TOPBAR */
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+        }
+        .topbar h1 { font-size: 1.5em; color: var(--gray-900); }
+        .menu-toggle {
+            display: none; background: var(--primary); color: white; border: none;
+            padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 1.2em;
+        }
+
+        /* CARDS */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px; margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative; overflow: hidden;
+        }
+        .stat-card .stat-icon { font-size: 2em; position: absolute; right: 15px; top: 15px; opacity: 0.2; }
+        .stat-card .stat-value { font-size: 2em; font-weight: 800; color: var(--gray-900); }
+        .stat-card .stat-label { color: var(--gray-500); font-size: 0.85em; margin-top: 5px; }
+        .stat-card.blue { border-left: 4px solid var(--primary); }
+        .stat-card.green { border-left: 4px solid var(--success); }
+        .stat-card.yellow { border-left: 4px solid var(--warning); }
+        .stat-card.red { border-left: 4px solid var(--danger); }
+
+        /* TABLES */
+        .card {
+            background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px; overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--gray-200);
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+        }
+        .card-header h2 { font-size: 1.1em; color: var(--gray-900); }
+        .card-body { padding: 20px; }
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--gray-50); padding: 12px 15px; text-align: left; font-size: 0.8em; text-transform: uppercase; color: var(--gray-500); font-weight: 600; white-space: nowrap; }
+        td { padding: 12px 15px; border-bottom: 1px solid var(--gray-100); font-size: 0.9em; }
+        tr:hover { background: var(--gray-50); }
+
+        /* BADGES */
+        .badge {
+            display: inline-block; padding: 4px 10px; border-radius: 20px;
+            font-size: 0.75em; font-weight: 600; text-transform: uppercase;
+        }
+        .badge-pendiente { background: #fef3c7; color: #92400e; }
+        .badge-en_revision { background: #dbeafe; color: #1e40af; }
+        .badge-derivada_comercial { background: #e0e7ff; color: #3730a3; }
+        .badge-multa_emitida { background: #fee2e2; color: #991b1b; }
+        .badge-resuelta { background: #d1fae5; color: #065f46; }
+        .badge-archivada { background: #e2e8f0; color: #475569; }
+        .badge-leve { background: #d1fae5; color: #065f46; }
+        .badge-moderada { background: #fef3c7; color: #92400e; }
+        .badge-grave { background: #fed7aa; color: #9a3412; }
+        .badge-muy_grave { background: #fee2e2; color: #991b1b; }
+
+        /* BUTTONS */
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.85em; font-weight: 600; transition: all 0.2s; display: inline-flex;
+            align-items: center; gap: 6px; text-decoration: none;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-info { background: var(--info); color: white; }
+        .btn-sm { padding: 5px 10px; font-size: 0.8em; }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+
+        /* FORMS */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85em; color: var(--gray-700); }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px 14px; border: 2px solid var(--gray-200);
+            border-radius: 8px; font-size: 0.9em; transition: border-color 0.2s; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .form-check input[type="checkbox"] { width: 18px; height: 18px; }
+
+        /* MODAL */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: flex-start;
+            padding: 20px; overflow-y: auto;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 16px; width: 100%; max-width: 900px;
+            margin: 20px auto; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header {
+            padding: 20px; border-bottom: 1px solid var(--gray-200);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: white; z-index: 1; border-radius: 16px 16px 0 0;
+        }
+        .modal-header h2 { font-size: 1.2em; }
+        .modal-close { background: none; border: none; font-size: 1.5em; cursor: pointer; color: var(--gray-500); }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 15px 20px; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* FILTERS */
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: center; }
+        .filters input, .filters select {
+            padding: 8px 12px; border: 2px solid var(--gray-200); border-radius: 8px; font-size: 0.85em; outline: none;
+        }
+        .filters input:focus, .filters select:focus { border-color: var(--primary); }
+
+        /* FILE UPLOAD */
+        .file-upload-zone {
+            border: 2px dashed var(--gray-300); border-radius: 12px; padding: 30px;
+            text-align: center; cursor: pointer; transition: all 0.3s; margin-bottom: 15px;
+        }
+        .file-upload-zone:hover { border-color: var(--primary); background: var(--primary-light); }
+        .file-upload-zone .icon { font-size: 2.5em; margin-bottom: 10px; }
+        .file-preview { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .file-thumb {
+            position: relative; width: 100px; height: 100px; border-radius: 8px;
+            overflow: hidden; border: 2px solid var(--gray-200);
+        }
+        .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .file-thumb .remove {
+            position: absolute; top: 2px; right: 2px; background: var(--danger); color: white;
+            border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 0.7em;
+        }
+
+        /* GALLERY */
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+        .gallery-item {
+            border-radius: 10px; overflow: hidden; border: 2px solid var(--gray-200);
+            cursor: pointer; transition: transform 0.2s; position: relative;
+        }
+        .gallery-item:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .gallery-item img { width: 100%; height: 120px; object-fit: cover; }
+        .gallery-item .video-badge {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            background: rgba(0,0,0,0.6); color: white; border-radius: 50%;
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2em;
+        }
+        .gallery-item-info { padding: 8px; font-size: 0.75em; color: var(--gray-500); }
+
+        /* TIMELINE */
+        .timeline { padding: 10px 0; }
+        .timeline-item { display: flex; gap: 15px; margin-bottom: 15px; position: relative; }
+        .timeline-item::before {
+            content: ''; position: absolute; left: 17px; top: 35px; width: 2px;
+            height: calc(100% - 10px); background: var(--gray-200);
+        }
+        .timeline-item:last-child::before { display: none; }
+        .timeline-dot {
+            width: 36px; height: 36px; border-radius: 50%; background: var(--primary);
+            display: flex; align-items: center; justify-content: center; color: white;
+            font-size: 0.8em; flex-shrink: 0;
+        }
+        .timeline-content { flex: 1; }
+        .timeline-content .action { font-weight: 600; color: var(--gray-900); }
+        .timeline-content .comment { color: var(--gray-500); font-size: 0.85em; margin-top: 3px; }
+        .timeline-content .meta { font-size: 0.75em; color: var(--gray-500); margin-top: 5px; }
+
+        /* TOAST */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 5000; }
+        .toast {
+            background: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .toast.info { border-left: 4px solid var(--info); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* INFORME PRINT */
+        .informe-header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid var(--primary); }
+        .informe-section { margin-bottom: 20px; }
+        .informe-section h3 { color: var(--primary); margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--gray-200); }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }
+        .info-item { display: flex; gap: 8px; padding: 6px 0; }
+        .info-item .label { font-weight: 600; color: var(--gray-500); min-width: 140px; font-size: 0.85em; }
+        .info-item .value { color: var(--gray-900); font-size: 0.9em; }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.visible { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .menu-toggle { display: block; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .form-grid { grid-template-columns: 1fr; }
+            .modal { margin: 10px; }
+        }
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .topbar h1 { font-size: 1.1em; }
+        }
+        @media print {
+            .sidebar, .topbar, .no-print { display: none !important; }
+            .main-content { margin-left: 0 !important; }
+        }
+
+        .loading { text-align: center; padding: 40px; color: var(--gray-500); }
+        .empty-state { text-align: center; padding: 40px; color: var(--gray-500); }
+        .empty-state .icon { font-size: 3em; margin-bottom: 10px; opacity: 0.5; }
+        .tab-bar { display: flex; border-bottom: 2px solid var(--gray-200); margin-bottom: 20px; overflow-x: auto; }
+        .tab-item { padding: 10px 20px; cursor: pointer; font-weight: 600; color: var(--gray-500); border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.2s; }
+        .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-item:hover { color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>🚰 SAMEEP</h2>
+            <small>Sistema de Inspecciones</small>
+        </div>
+        <div class="nav-menu">
+            <div class="nav-item active" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</div>
+            <div class="nav-item" onclick="navigate('inspecciones')"><span class="icon">📋</span> Inspecciones</div>
+            <div class="nav-item" onclick="navigate('clientes')"><span class="icon">👥</span> Clientes</div>
+            <div class="nav-item" onclick="navigate('multas')"><span class="icon">⚖️</span> Multas</div>
+            <div class="nav-divider"></div>
+            <div class="nav-item" onclick="navigate('nueva-inspeccion')"><span class="icon">➕</span> Nueva Inspección</div>
+            <div class="nav-item" onclick="navigate('nuevo-cliente')"><span class="icon">➕</span> Nuevo Cliente</div>
+            <div class="nav-divider"></div>
+            <div class="nav-item" id="nav-usuarios" style="display:none" onclick="navigate('usuarios')"><span class="icon">⚙️</span> Usuarios</div>
+        </div>
+        <div class="user-info">
+            <div class="name" id="userName">-</div>
+            <div class="role" id="userRole">-</div>
+        </div>
+        <button class="btn-logout" onclick="logout()">🚪 Cerrar Sesión</button>
+    </nav>
+
+    <!-- MAIN -->
+    <div class="main-content" id="mainContent">
+        <div class="topbar no-print">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <h1 id="pageTitle">Dashboard</h1>
+            <div></div>
+        </div>
+        <div id="pageContent">
+            <div class="loading">Cargando...</div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Modal</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- TOASTS -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    // ============ STATE ============
+    let currentUser = null;
+    let currentPage = 'dashboard';
+
+    // ============ INIT ============
+    async function init() {
+        try {
+            const res = await fetch('/api/me');
+            if (!res.ok) { window.location.href = '/login'; return; }
+            currentUser = await res.json();
+            document.getElementById('userName').textContent = currentUser.nombre;
+            document.getElementById('userRole').textContent = currentUser.rol;
+            if (['admin', 'jefe'].includes(currentUser.rol)) {
+                document.getElementById('nav-usuarios').style.display = '';
+            }
+            navigate('dashboard');
+        } catch (e) {
+            window.location.href = '/login';
+        }
+    }
+
+    // ============ NAVIGATION ============
+    function navigate(page, params = {}) {
+        currentPage = page;
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        const titles = {
+            'dashboard': 'Dashboard', 'inspecciones': 'Inspecciones', 'clientes': 'Clientes',
+            'multas': 'Multas', 'nueva-inspeccion': 'Nueva Inspección', 'nuevo-cliente': 'Nuevo Cliente',
+            'usuarios': 'Gestión de Usuarios', 'ver-inspeccion': 'Detalle de Inspección'
+        };
+        document.getElementById('pageTitle').textContent = titles[page] || page;
+        
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            if (item.textContent.trim().toLowerCase().includes(page.split('-')[0]) || 
+                (page === 'dashboard' && item.textContent.includes('Dashboard'))) {
+                item.classList.add('active');
+            }
+        });
+
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('visible');
+        }
+
+        const renderers = {
+            'dashboard': renderDashboard, 'inspecciones': renderInspecciones,
+            'clientes': renderClientes, 'multas': renderMultas,
+            'nueva-inspeccion': () => renderFormInspeccion(params),
+            'nuevo-cliente': () => renderFormCliente(params),
+            'ver-inspeccion': () => renderVerInspeccion(params.id),
+            'usuarios': renderUsuarios
+        };
+        if (renderers[page]) renderers[page]();
+    }
+
+    // ============ DASHBOARD ============
+    async function renderDashboard() {
+        const res = await fetch('/api/dashboard');
+        const data = await res.json();
+        document.getElementById('pageContent').innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-value">${data.total_inspecciones}</div>
+                    <div class="stat-label">Total Inspecciones</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-value">${data.pendientes}</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon">🔍</div>
+                    <div class="stat-value">${data.en_revision}</div>
+                    <div class="stat-label">En Revisión</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-icon">📤</div>
+                    <div class="stat-value">${data.derivadas_comercial}</div>
+                    <div class="stat-label">Derivadas a Comercial</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-icon">🚨</div>
+                    <div class="stat-value">${data.fraudes_detectados}</div>
+                    <div class="stat-label">Fraudes Detectados</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-icon">⚖️</div>
+                    <div class="stat-value">${data.total_multas}</div>
+                    <div class="stat-label">Multas Generadas</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value">${data.resueltas}</div>
+                    <div class="stat-label">Resueltas</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-value">$${Number(data.monto_multas).toLocaleString()}</div>
+                    <div class="stat-label">Monto Total Multas</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Últimas Inspecciones</h2>
+                    <button class="btn btn-primary" onclick="navigate('nueva-inspeccion')">➕ Nueva</button>
+                </div>
+                <div class="card-body table-responsive">
+                    <table>
+                        <thead><tr>
+                            <th>N° Acta</th><th>Cliente</th><th>Tipo</th><th>Fecha</th><th>Estado</th><th>Acciones</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.ultimas_inspecciones.map(i => `
+                                <tr>
+                                    <td><strong>${i.numero_acta}</strong></td>
+                                    <td>${i.cliente_nombre || 'Sin asignar'}</td>
+                                    <td>${formatTipoInspeccion(i.tipo_inspeccion)}</td>
+                                    <td>${formatDate(i.fecha_inspeccion)}</td>
+                                    <td><span class="badge badge-${i.estado}">${formatEstado(i.estado)}</span></td>
+                                    <td><button class="btn btn-sm btn-info" onclick="navigate('ver-inspeccion', {id:${i.id}})">👁️ Ver</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // ============ INSPECCIONES ============
+    async function renderInspecciones() {
+        document.getElementById('pageContent').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Listado de Inspecciones</h2>
+                    <button class="btn btn-primary" onclick="navigate('nueva-inspeccion')">➕ Nueva Inspección</button>
+                </div>
+                <div class="card-body">
+                    <div class="filters">
+                        <input type="text" id="filtBuscar" placeholder="🔍 Buscar por acta, cliente, dirección..." style="min-width:250px" oninput="loadInspecciones()">
+                        <select id="filtEstado" onchange="loadInspecciones()">
+                            <option value="">Todos los estados</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_revision">En Revisión</option>
+                            <option value="derivada_comercial">Derivada a Comercial</option>
+                            <option value="multa_emitida">Multa Emitida</option>
+                            <option value="resuelta">Resuelta</option>
+                            <option value="archivada">Archivada</option>
+                        </select>
+                        <select id="filtTipo" onchange="loadInspecciones()">
+                            <option value="">Todos los tipos</option>
+                            <option value="inspeccion_regular">Inspección Regular</option>
+                            <option value="verificacion_fraude">Verificación de Fraude</option>
+                            <option value="conexion_clandestina">Conexión Clandestina</option>
+                            <option value="reclamo">Reclamo</option>
+                            <option value="corte_servicio">Corte de Servicio</option>
+                            <option value="reconexion">Reconexión</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive" id="tablaInspecciones"><div class="loading">Cargando...</div></div>
+                </div>
+            </div>
+        `;
+        loadInspecciones();
+    }
+
+    async function loadInspecciones() {
+        const buscar = document.getElementById('filtBuscar')?.value || '';
+        const estado = document.getElementById('filtEstado')?.value || '';
+        const tipo = document.getElementById('filtTipo')?.value || '';
+        const res = await fetch(`/api/inspecciones?buscar=${encodeURIComponent(buscar)}&estado=${estado}&tipo=${tipo}`);
+        const data = await res.json();
+        
+        if (data.inspecciones.length === 0) {
+            document.getElementById('tablaInspecciones').innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>No se encontraron inspecciones</p></div>`;
+            return;
+        }
+        
+        document.getElementById('tablaInspecciones').innerHTML = `
+            <table>
+                <thead><tr>
+                    <th>N° Acta</th><th>Cliente</th><th>Dirección</th><th>Tipo</th><th>Gravedad</th><th>Fecha</th><th>Estado</th><th>Archivos</th><th>Acciones</th>
+                </tr></thead>
+                <tbody>
+                    ${data.inspecciones.map(i => `
+                        <tr>
+                            <td><strong>${i.numero_acta}</strong></td>
+                            <td>${i.cliente_nombre || '<em style="color:#94a3b8">Sin asignar</em>'}</td>
+                            <td>${(i.direccion_inspeccion || '').substring(0, 30)}${(i.direccion_inspeccion || '').length > 30 ? '...' : ''}</td>
+                            <td>${formatTipoInspeccion(i.tipo_inspeccion)}</td>
+                            <td><span class="badge badge-${i.gravedad}">${i.gravedad}</span></td>
+                            <td>${formatDate(i.fecha_inspeccion)}</td>
+                            <td><span class="badge badge-${i.estado}">${formatEstado(i.estado)}</span></td>
+                            <td>${i.archivos_count > 0 ? '📎 ' + i.archivos_count : '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="navigate('ver-inspeccion',{id:${i.id}})">👁️</button>
+                                <button class="btn btn-sm btn-warning" onclick="navigate('nueva-inspeccion',{editId:${i.id}})">✏️</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <p style="margin-top:10px;color:var(--gray-500);font-size:0.85em">Total: ${data.total} inspecciones</p>
+        `;
+    }
+
+    // ============ VER INSPECCIÓN DETALLE ============
+    async function renderVerInspeccion(id) {
+        const res = await fetch(`/api/inspecciones/${id}`);
+        const data = await res.json();
+        const i = data.inspeccion;
+        const archivos = data.archivos;
+        const seguimientos = data.seguimientos;
+        
+        const imagenes = archivos.filter(a => a.tipo === 'imagen');
+        const videos = archivos.filter(a => a.tipo === 'video');
+        const docs = archivos.filter(a => a.tipo === 'documento');
+        
+        const infracciones = [];
+        if (i.conexion_irregular) infracciones.push('🔴 Conexión Irregular');
+        if (i.bypass_detectado) infracciones.push('🔴 Bypass Detectado');
+        if (i.manipulacion_medidor) infracciones.push('🔴 Manipulación de Medidor');
+        if (i.conexion_clandestina) infracciones.push('🔴 Conexión Clandestina');
+        if (i.fuga_detectada) infracciones.push('🟡 Fuga Detectada');
+
+        document.getElementById('pageContent').innerHTML = `
+            <div class="no-print" style="margin-bottom:15px;display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-outline" onclick="navigate('inspecciones')">← Volver</button>
+                <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir Informe</button>
+                <button class="btn btn-warning" onclick="navigate('nueva-inspeccion',{editId:${i.id}})">✏️ Editar</button>
+                ${['admin','jefe','comercial'].includes(currentUser.rol) && !data.multas.length ? 
+                    `<button class="btn btn-danger" onclick="showGenerarMulta(${i.id}, ${i.cliente_id})">⚖️ Generar Multa</button>` : ''}
+                <button class="btn btn-success" onclick="showCambiarEstado(${i.id}, '${i.estado}')">📝 Cambiar Estado</button>
+            </div>
+
+            <!-- INFORME -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="informe-header">
+                        <h1>🚰 SAMEEP</h1>
+                        <h2>ACTA DE INSPECCIÓN</h2>
+                        <h3>${i.numero_acta}</h3>
+                    </div>
+
+                    <div class="informe-section">
+                        <h3>📋 Datos de la Inspección</h3>
+                        <div class="info-grid">
+                            <div class="info-item"><span class="label">N° de Acta:</span><span class="value"><strong>${i.numero_acta}</strong></span></div>
+                            <div class="info-item"><span class="label">Fecha:</span><span class="value">${formatDate(i.fecha_inspeccion)}</span></div>
+                            <div class="info-item"><span class="label">Tipo:</span><span class="value">${formatTipoInspeccion(i.tipo_inspeccion)}</span></div>
+                            <div class="info-item"><span class="label">Gravedad:</span><span class="value"><span class="badge badge-${i.gravedad}">${i.gravedad}</span></span></div>
+                            <div class="info-item"><span class="label">Estado:</span><span class="value"><span class="badge badge-${i.estado}">${formatEstado(i.estado)}</span></span></div>
+                            <div class="info-item"><span class="label">Inspector:</span><span class="value">${i.inspector_nombre}</span></div>
+                            <div class="info-item"><span class="label">Dirección:</span><span class="value">${i.direccion_inspeccion}</span></div>
+                        </div>
+                    </div>
+
+                    ${i.cliente_nombre ? `
+                    <div class="informe-section">
+                        <h3>👤 Datos del Cliente</h3>
+                        <div class="info-grid">
+                            <div class="info-item"><span class="label">Nombre:</span><span class="value">${i.cliente_nombre}</span></div>
+                            <div class="info-item"><span class="label">N° Cuenta:</span><span class="value">${i.numero_cuenta || '-'}</span></div>
+                            <div class="info-item"><span class="label">DNI:</span><span class="value">${i.cliente_dni || '-'}</span></div>
+                            <div class="info-item"><span class="label">Dirección:</span><span class="value">${i.cliente_direccion || '-'}</span></div>
+                            <div class="info-item"><span class="label">Teléfono:</span><span class="value">${i.cliente_telefono || '-'}</span></div>
+                        </div>
+                    </div>` : ''}
+
+                    ${i.medidor_numero ? `
+                    <div class="informe-section">
+                        <h3>📟 Datos del Medidor</h3>
+                        <div class="info-grid">
+                            <div class="info-item"><span class="label">N° Medidor:</span><span class="value">${i.medidor_numero}</span></div>
+                            <div class="info-item"><span class="label">Lectura:</span><span class="value">${i.lectura_medidor || '-'}</span></div>
+                        </div>
+                    </div>` : ''}
+
+                    <div class="informe-section">
+                        <h3>📝 Descripción</h3>
+                        <p style="line-height:1.6">${i.descripcion || '-'}</p>
+                    </div>
+
+                    ${i.hallazgos ? `
+                    <div class="informe-section">
+                        <h3>🔍 Hallazgos</h3>
+                        <p style="line-height:1.6">${i.hallazgos}</p>
+                    </div>` : ''}
+
+                    ${infracciones.length > 0 ? `
+                    <div class="informe-section">
+                        <h3>🚨 Infracciones Detectadas</h3>
+                        <ul style="list-style:none;padding:0">
+                            ${infracciones.map(inf => `<li style="padding:5px 0;font-size:0.95em">${inf}</li>`).join('')}
+                        </ul>
+                    </div>` : ''}
+
+                    ${i.observaciones ? `
+                    <div class="informe-section">
+                        <h3>📌 Observaciones</h3>
+                        <p style="line-height:1.6">${i.observaciones}</p>
+                    </div>` : ''}
+
+                    ${data.multas.length > 0 ? `
+                    <div class="informe-section">
+                        <h3>⚖️ Multas Asociadas</h3>
+                        ${data.multas.map(m => `
+                            <div style="background:var(--gray-50);padding:12px;border-radius:8px;margin-bottom:8px">
+                                <strong>${m.numero_multa}</strong> - Monto: <strong>$${Number(m.monto).toLocaleString()}</strong> 
+                                - Estado: <span class="badge badge-${m.estado === 'pagada' ? 'resuelta' : 'multa_emitida'}">${m.estado}</span>
+                                <br><small>${m.descripcion || ''}</small>
+                            </div>
+                        `).join('')}
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- PRUEBAS GRÁFICAS -->
+            <div class="card no-print">
+                <div class="card-header">
+                    <h2>📷 Pruebas Gráficas (${archivos.length} archivos)</h2>
+                    <button class="btn btn-primary" onclick="showUploadModal(${i.id})">📤 Subir Archivos</button>
+                </div>
+                <div class="card-body">
+                    ${imagenes.length > 0 ? `
+                        <h4 style="margin-bottom:10px">📸 Fotografías (${imagenes.length})</h4>
+                        <div class="gallery">
+                            ${imagenes.map(a => `
+                                <div class="gallery-item" onclick="viewImage('/uploads/images/${a.nombre_archivo}')">
+                                    <img src="/uploads/images/${a.nombre_archivo}" alt="${a.nombre_original}">
+                                    <div class="gallery-item-info">${a.nombre_original}<br>${formatDate(a.fecha_subida)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${videos.length > 0 ? `
+                        <h4 style="margin:15px 0 10px">🎥 Videos (${videos.length})</h4>
+                        <div class="gallery">
+                            ${videos.map(a => `
+                                <div class="gallery-item" onclick="viewVideo('/uploads/videos/${a.nombre_archivo}')">
+                                    <div style="height:120px;background:var(--gray-900);display:flex;align-items:center;justify-content:center">
+                                        <span class="video-badge">▶</span>
+                                    </div>
+                                    <div class="gallery-item-info">${a.nombre_original}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${docs.length > 0 ? `
+                        <h4 style="margin:15px 0 10px">📄 Documentos (${docs.length})</h4>
+                        ${docs.map(a => `
+                            <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--gray-50);border-radius:8px;margin-bottom:5px">
+                                <span>📄</span>
+                                <a href="/uploads/documents/${a.nombre_archivo}" target="_blank">${a.nombre_original}</a>
+                            </div>
+                        `).join('')}
+                    ` : ''}
+                    ${archivos.length === 0 ? '<div class="empty-state"><div class="icon">📷</div><p>No hay archivos adjuntos</p></div>' : ''}
+                </div>
+            </div>
+
+            <!-- SEGUIMIENTO -->
+            <div class="card no-print">
+                <div class="card-header">
+                    <h2>📝 Historial de Seguimiento</h2>
+                </div>
+                <div class="card-body">
+                    ${seguimientos.length > 0 ? `
+                        <div class="timeline">
+                            ${seguimientos.map(s => `
+                                <div class="timeline-item">
+                                    <div class="timeline-dot">📝</div>
+                                    <div class="timeline-content">
+                                        <div class="action">${s.accion}</div>
+                                        ${s.comentario ? `<div class="comment">${s.comentario}</div>` : ''}
+                                        <div class="meta">
+                                            ${s.usuario_nombre} · ${formatDateTime(s.fecha)}
+                                            ${s.estado_anterior && s.estado_nuevo && s.estado_anterior !== s.estado_nuevo ? 
+                                                ` · <span class="badge badge-${s.estado_anterior}">${formatEstado(s.estado_anterior)}</span> → <span class="badge badge-${s.estado_nuevo}">${formatEstado(s.estado_nuevo)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p>Sin seguimientos registrados.</p>'}
+                </div>
+            </div>
+        `;
+    }
+
+    // ============ FORM INSPECCIÓN ============
+    async function renderFormInspeccion(params = {}) {
+        let inspeccion = null;
+        if (params.editId) {
+            const res = await fetch(`/api/inspecciones/${params.editId}`);
+            const data = await res.json();
+            inspeccion = data.inspeccion;
+            document.getElementById('pageTitle').textContent = `Editar Inspección ${inspeccion.numero_acta}`;
+        }
+
+        // Cargar clientes para select
+        const cRes = await fetch('/api/clientes?limit=1000');
+        const cData = await cRes.json();
+
+        document.getElementById('pageContent').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h2>${inspeccion ? '✏️ Editar' : '➕ Nueva'} Inspección</h2>
+                </div>
+                <div class="card-body">
+                    <form id="formInspeccion" onsubmit="saveInspeccion(event, ${params.editId || 'null'})">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Cliente (opcional)</label>
+                                <select name="cliente_id" id="clienteSelect">
+                                    <option value="">-- Sin cliente asignado --</option>
+                                    ${cData.clientes.map(c => `<option value="${c.id}" ${inspeccion && inspeccion.cliente_id == c.id ? 'selected' : ''}>${c.nombre} - ${c.numero_cuenta || 'S/C'} - ${c.direccion}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Tipo de Inspección *</label>
+                                <select name="tipo_inspeccion" required>
+                                    <option value="">Seleccione...</option>
+                                    <option value="inspeccion_regular" ${inspeccion?.tipo_inspeccion==='inspeccion_regular'?'selected':''}>Inspección Regular</option>
+                                    <option value="verificacion_fraude" ${inspeccion?.tipo_inspeccion==='verificacion_fraude'?'selected':''}>Verificación de Fraude</option>
+                                    <option value="conexion_clandestina" ${inspeccion?.tipo_inspeccion==='conexion_clandestina'?'selected':''}>Conexión Clandestina</option>
+                                    <option value="reclamo" ${inspeccion?.tipo_inspeccion==='reclamo'?'selected':''}>Reclamo</option>
+                                    <option value="corte_servicio" ${inspeccion?.tipo_inspeccion==='corte_servicio'?'selected':''}>Corte de Servicio</option>
+                                    <option value="reconexion" ${inspeccion?.tipo_inspeccion==='reconexion'?'selected':''}>Reconexión</option>
+                                    <option value="registro_conexion" ${inspeccion?.tipo_inspeccion==='registro_conexion'?'selected':''}>Registro de Conexión</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Inspección *</label>
+                                <input type="datetime-local" name="fecha_inspeccion" required value="${inspeccion ? inspeccion.fecha_inspeccion?.replace(' ', 'T')?.substring(0,16) : new Date().toISOString().substring(0,16)}">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección de Inspección *</label>
+                                <input type="text" name="direccion_inspeccion" required value="${inspeccion?.direccion_inspeccion || ''}" placeholder="Dirección completa">
+                            </div>
+                            <div class="form-group">
+                                <label>Gravedad</label>
+                                <select name="gravedad">
+                                    <option value="leve" ${inspeccion?.gravedad==='leve'?'selected':''}>Leve</option>
+                                    <option value="moderada" ${inspeccion?.gravedad==='moderada'?'selected':''}>Moderada</option>
+                                    <option value="grave" ${inspeccion?.gravedad==='grave'?'selected':''}>Grave</option>
+                                    <option value="muy_grave" ${inspeccion?.gravedad==='muy_grave'?'selected':''}>Muy Grave</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>N° de Medidor</label>
+                                <input type="text" name="medidor_numero" value="${inspeccion?.medidor_numero || ''}" placeholder="Número de medidor">
+                            </div>
+                            <div class="form-group">
+                                <label>Lectura del Medidor</label>
+                                <input type="text" name="lectura_medidor" value="${inspeccion?.lectura_medidor || ''}" placeholder="Lectura actual">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descripción *</label>
+                            <textarea name="descripcion" required rows="3" placeholder="Descripción detallada de la inspección realizada...">${inspeccion?.descripcion || ''}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Hallazgos</label>
+                            <textarea name="hallazgos" rows="3" placeholder="Detalle de los hallazgos encontrados...">${inspeccion?.hallazgos || ''}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tipo de Infracción</label>
+                            <textarea name="tipo_infraccion" rows="2" placeholder="Tipo de infracción detectada...">${inspeccion?.tipo_infraccion || ''}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>🚨 Irregularidades Detectadas</label>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px">
+                                <div class="form-check"><input type="checkbox" name="conexion_irregular" ${inspeccion?.conexion_irregular?'checked':''}><label>Conexión Irregular</label></div>
+                                <div class="form-check"><input type="checkbox" name="bypass_detectado" ${inspeccion?.bypass_detectado?'checked':''}><label>Bypass Detectado</label></div>
+                                <div class="form-check"><input type="checkbox" name="manipulacion_medidor" ${inspeccion?.manipulacion_medidor?'checked':''}><label>Manipulación de Medidor</label></div>
+                                <div class="form-check"><input type="checkbox" name="conexion_clandestina" ${inspeccion?.conexion_clandestina?'checked':''}><label>Conexión Clandestina</label></div>
+                                <div class="form-check"><input type="checkbox" name="fuga_detectada" ${inspeccion?.fuga_detectada?'checked':''}><label>Fuga Detectada</label></div>
+                            </div>
+                        </div>
+
+                        ${inspeccion ? `
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select name="estado">
+                                <option value="pendiente" ${inspeccion.estado==='pendiente'?'selected':''}>Pendiente</option>
+                                <option value="en_revision" ${inspeccion.estado==='en_revision'?'selected':''}>En Revisión</option>
+                                <option value="derivada_comercial" ${inspeccion.estado==='derivada_comercial'?'selected':''}>Derivada a Comercial</option>
+                                <option value="multa_emitida" ${inspeccion.estado==='multa_emitida'?'selected':''}>Multa Emitida</option>
+                                <option value="resuelta" ${inspeccion.estado==='resuelta'?'selected':''}>Resuelta</option>
+                                <option value="archivada" ${inspeccion.estado==='archivada'?'selected':''}>Archivada</option>
+                            </select>
+                        </div>` : ''}
+
+                        <div class="form-group">
+                            <label>Observaciones</label>
+                            <textarea name="observaciones" rows="2" placeholder="Observaciones adicionales...">${inspeccion?.observaciones || ''}</textarea>
+                        </div>
+
+                        <div style="display:flex;gap:10px;margin-top:20px">
+                            <button type="submit" class="btn btn-primary">💾 ${inspeccion ? 'Guardar Cambios' : 'Crear Inspección'}</button>
+                            <button type="button" class="btn btn-outline" onclick="navigate('inspecciones')">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    async function saveInspeccion(e, editId) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            cliente_id: form.cliente_id.value || null,
+            tipo_inspeccion: form.tipo_inspeccion.value,
+            fecha_inspeccion: form.fecha_inspeccion.value,
+            direccion_inspeccion: form.direccion_inspeccion.value,
+            descripcion: form.descripcion.value,
+            hallazgos: form.hallazgos.value,
+            tipo_infraccion: form.tipo_infraccion.value,
+            gravedad: form.gravedad.value,
+            medidor_numero: form.medidor_numero.value,
+            lectura_medidor: form.lectura_medidor.value,
+            conexion_irregular: form.conexion_irregular.checked,
+            bypass_detectado: form.bypass_detectado.checked,
+            manipulacion_medidor: form.manipulacion_medidor.checked,
+            conexion_clandestina: form.conexion_clandestina.checked,
+            fuga_detectada: form.fuga_detectada.checked,
+            observaciones: form.observaciones.value
+        };
+        if (editId) {
+            data.estado = form.estado.value;
+        }
+
+        try {
+            const url = editId ? `/api/inspecciones/${editId}` : '/api/inspecciones';
+            const res = await fetch(url, {
+                method: editId ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success || result.id) {
+                showToast(editId ? 'Inspección actualizada' : `Inspección creada: ${result.numero_acta}`, 'success');
+                const id = editId || result.id;
+                navigate('ver-inspeccion', { id });
+            } else {
+                showToast(result.error || 'Error al guardar', 'error');
+            }
+        } catch (e) {
+            showToast('Error de conexión', 'error');
+        }
+    }
+
+    // ============ CLIENTES ============
+    async function renderClientes() {
+        document.getElementById('pageContent').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h2>👥 Clientes</h2>
+                    <button class="btn btn-primary" onclick="navigate('nuevo-cliente')">➕ Nuevo Cliente</button>
+                </div>
+                <div class="card-body">
+                    <div class="filters">
+                        <input type="text" id="buscarCliente" placeholder="🔍 Buscar por nombre, DNI, cuenta, dirección..." style="min-width:300px" oninput="loadClientes()">
+                    </div>
+                    <div class="table-responsive" id="tablaClientes"><div class="loading">Cargando...</div></div>
+                </div>
+            </div>
+        `;
+        loadClientes();
+    }
+
+    async function loadClientes() {
+        const buscar = document.getElementById('buscarCliente')?.value || '';
+        const res = await fetch(`/api/clientes?buscar=${encodeURIComponent(buscar)}`);
+        const data = await res.json();
+        if (data.clientes.length === 0) {
+            document.getElementById('tablaClientes').innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No se encontraron clientes</p></div>';
+            return;
+        }
+        document.getElementById('tablaClientes').innerHTML = `
+            <table>
+                <thead><tr><th>Cuenta</th><th>Nombre</th><th>DNI</th><th>Dirección</th><th>Barrio</th><th>Teléfono</th><th>Acciones</th></tr></thead>
+                <tbody>
+                    ${data.clientes.map(c => `
+                        <tr>
+                            <td>${c.numero_cuenta || '-'}</td>
+                            <td><strong>${c.nombre}</strong></td>
+                            <td>${c.dni || '-'}</td>
+                            <td>${c.direccion}</td>
+                            <td>${c.barrio || '-'}</td>
+                            <td>${c.telefono || '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="showClienteDetalle(${c.id})">👁️</button>
+                                <button class="btn btn-sm btn-warning" onclick="navigate('nuevo-cliente',{editId:${c.id}})">✏️</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    async function showClienteDetalle(id) {
+        const res = await fetch(`/api/clientes/${id}`);
+        const data = await res.json();
+        const c = data.cliente;
+        openModal('Detalle del Cliente', `
+            <div class="info-grid">
+                <div class="info-item"><span class="label">Nombre:</span><span class="value">${c.nombre}</span></div>
+                <div class="info-item"><span class="label">N° Cuenta:</span><span class="value">${c.numero_cuenta || '-'}</span></div>
+                <div class="info-item"><span class="label">DNI:</span><span class="value">${c.dni || '-'}</span></div>
+                <div class="info-item"><span class="label">Dirección:</span><span class="value">${c.direccion}</span></div>
+                <div class="info-item"><span class="label">Barrio:</span><span class="value">${c.barrio || '-'}</span></div>
+                <div class="info-item"><span class="label">Ciudad:</span><span class="value">${c.ciudad || '-'}</span></div>
+                <div class="info-item"><span class="label">Teléfono:</span><span class="value">${c.telefono || '-'}</span></div>
+                <div class="info-item"><span class="label">Email:</span><span class="value">${c.email || '-'}</span></div>
+                <div class="info-item"><span class="label">Servicio:</span><span class="value">${c.tipo_servicio || '-'}</span></div>
+            </div>
+            ${data.inspecciones.length > 0 ? `
+                <h4 style="margin-top:20px">📋 Inspecciones (${data.inspecciones.length})</h4>
+                ${data.inspecciones.map(i => `
+                    <div style="background:var(--gray-50);padding:10px;border-radius:8px;margin-top:8px;cursor:pointer" onclick="closeModal();navigate('ver-inspeccion',{id:${i.id}})">
+                        <strong>${i.numero_acta}</strong> - ${formatTipoInspeccion(i.tipo_inspeccion)} 
+                        <span class="badge badge-${i.estado}">${formatEstado(i.estado)}</span>
+                        <br><small>${formatDate(i.fecha_inspeccion)}</small>
+                    </div>
+                `).join('')}
+            ` : '<p style="margin-top:15px;color:var(--gray-500)">Sin inspecciones registradas.</p>'}
+        `);
+    }
+
+    // ============ FORM CLIENTE ============
+    async function renderFormCliente(params = {}) {
+        let cliente = null;
+        if (params.editId) {
+            const res = await fetch(`/api/clientes/${params.editId}`);
+            const data = await res.json();
+            cliente = data.cliente;
+            document.getElementById('pageTitle').textContent = 'Editar Cliente';
+        }
+        document.getElementById('pageContent').innerHTML = `
+            <div class="card">
+                <div class="card-header"><h2>${cliente ? '✏️ Editar' : '➕ Nuevo'} Cliente</h2></div>
+                <div class="card-body">
+                    <form onsubmit="saveCliente(event, ${params.editId || 'null'})">
+                        <div class="form-grid">
+                            <div class="form-group"><label>N° de Cuenta</label><input type="text" name="numero_cuenta" value="${cliente?.numero_cuenta || ''}" placeholder="Número de cuenta SAMEEP"></div>
+                            <div class="form-group"><label>Nombre Completo *</label><input type="text" name="nombre" required value="${cliente?.nombre || ''}" placeholder="Nombre y apellido"></div>
+                            <div class="form-group"><label>DNI</label><input type="text" name="dni" value="${cliente?.dni || ''}" placeholder="Documento de identidad"></div>
+                            <div class="form-group"><label>Dirección *</label><input type="text" name="direccion" required value="${cliente?.direccion || ''}" placeholder="Dirección completa"></div>
+                            <div class="form-group"><label>Barrio</label><input type="text" name="barrio" value="${cliente?.barrio || ''}" placeholder="Barrio"></div>
+                            <div class="form-group"><label>Ciudad</label><input type="text" name="ciudad" value="${cliente?.ciudad || 'Resistencia'}" placeholder="Ciudad"></div>
+                            <div class="form-group"><label>Teléfono</label><input type="text" name="telefono" value="${cliente?.telefono || ''}" placeholder="Teléfono de contacto"></div>
+                            <div class="form-group"><label>Email</label><input type="email" name="email" value="${cliente?.email || ''}" placeholder="Correo electrónico"></div>
+                            <div class="form-group">
+                                <label>Tipo de Servicio</label>
+                                <select name="tipo_servicio">
+                                    <option value="agua_cloaca" ${cliente?.tipo_servicio==='agua_cloaca'?'selected':''}>Agua y Cloaca</option>
+                                    <option value="agua" ${cliente?.tipo_servicio==='agua'?'selected':''}>Solo Agua</option>
+                                    <option value="cloaca" ${cliente?.tipo_servicio==='cloaca'?'selected':''}>Solo Cloaca</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group"><label>Observaciones</label><textarea name="observaciones" rows="2">${cliente?.observaciones || ''}</textarea></div>
+                        <div style="display:flex;gap:10px;margin-top:20px">
+                            <button type="submit" class="btn btn-primary">💾 ${cliente ? 'Guardar Cambios' : 'Crear Cliente'}</button>
+                            <button type="button" class="btn btn-outline" onclick="navigate('clientes')">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    async function saveCliente(e, editId) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {};
+        new FormData(form).forEach((v, k) => data[k] = v);
+        try {
+            const url = editId ? `/api/clientes/${editId}` : '/api/clientes';
+            const res = await fetch(url, {
+                method: editId ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success || result.id) {
+                showToast('Cliente guardado correctamente', 'success');
+                navigate('clientes');
+            } else {
+                showToast(result.error || 'Error', 'error');
+            }
+        } catch (e) { showToast('Error de conexión', 'error'); }
+    }
+
+    // ============ MULTAS ============
+    async function renderMultas() {
+        const res = await fetch('/api/multas');
+        const data = await res.json();
+        document.getElementById('pageContent').innerHTML = `
+            <div class="card">
+                <div class="card-header"><h2>⚖️ Multas Generadas</h2></div>
+                <div class="card-body table-responsive">
+                    ${data.multas.length > 0 ? `
+                    <table>
+                        <thead><tr><th>N° Multa</th><th>N° Acta</th><th>Cliente</th><th>Monto</th><th>Estado</th><th>Fecha Emisión</th><th>Generada por</th></tr></thead>
+                        <tbody>
+                            ${data.multas.map(m => `
+                                <tr>
+                                    <td><strong>${m.numero_multa}</strong></td>
+                                    <td>${m.numero_acta || '-'}</td>
+                                    <td>${m.cliente_nombre || '-'}</td>
+                                    <td><strong>$${Number(m.monto).toLocaleString()}</strong></td>
+                                    <td><span class="badge badge-${m.estado === 'pagada' ? 'resuelta' : 'multa_emitida'}">${m.estado}</span></td>
+                                    <td>${formatDate(m.fecha_emision)}</td>
+                                    <td>${m.generada_por_nombre || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ` : '<div class="empty-state"><div class="icon">⚖️</div><p>No hay multas generadas</p></div>'}
+                </div>
+            </div>
+        `;
+    }
+
+    // ============ USUARIOS ============
+    async function renderUsuarios() {
+        const res = await fetch('/api/usuarios');
+        const data = await res.json();
+        document.getElementById('pageContent').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h2>⚙️ Usuarios del Sistema</h2>
+                    ${currentUser.rol === 'admin' ? '<button class="btn btn-primary" onclick="showNewUserModal()">➕ Nuevo Usuario</button>' : ''}
+                </div>
+                <div class="card-body table-responsive">
+                    <table>
+                        <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Email</th><th>Estado</th></tr></thead>
+                        <tbody>
+                            ${data.usuarios.map(u => `
+                                <tr>
+                                    <td>${u.username}</td>
+                                    <td><strong>${u.nombre_completo}</strong></td>
+                                    <td><span class="badge badge-en_revision">${u.rol}</span></td>
+                                    <td>${u.email || '-'}</td>
+                                    <td>${u.activo ? '🟢 Activo' : '🔴 Inactivo'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    function showNewUserModal() {
+        openModal('Nuevo Usuario', `
+            <form onsubmit="createUser(event)">
+                <div class="form-grid">
+                    <div class="form-group"><label>Usuario *</label><input type="text" name="username" required></div>
+                    <div class="form-group"><label>Contraseña *</label><input type="password" name="password" required></div>
+                    <div class="form-group"><label>Nombre Completo *</label><input type="text" name="nombre_completo" required></div>
+                    <div class="form-group">
+                        <label>Rol *</label>
+                        <select name="rol" required>
+                            <option value="inspector">Inspector</option>
+                            <option value="comercial">Comercial</option>
+                            <option value="jefe">Jefe</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                    <div class="form-group"><label>Teléfono</label><input type="text" name="telefono"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top:15px">💾 Crear Usuario</button>
+            </form>
+        `);
+    }
+
+    async function createUser(e) {
+        e.preventDefault();
+        const data = {};
+        new FormData(e.target).forEach((v, k) => data[k] = v);
+        const res = await fetch('/api/usuarios', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) { closeModal(); showToast('Usuario creado', 'success'); renderUsuarios(); }
+        else showToast(result.error, 'error');
+    }
+
+    // ============ MODALES ESPECIALES ============
+    function showUploadModal(inspeccionId) {
+        openModal('📤 Subir Archivos', `
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()" id="dropZone">
+                    <div class="icon">📁</div>
+                    <p><strong>Click aquí o arrastrá archivos</strong></p>
+                    <p style="font-size:0.8em;color:var(--gray-500)">Imágenes (JPG, PNG), Videos (MP4, AVI, MOV), Documentos (PDF, DOC)</p>
+                </div>
+                <input type="file" id="fileInput" name="archivos" multiple accept="image/*,video/*,.pdf,.doc,.docx" style="display:none" onchange="previewFiles(this)">
+                <div class="file-preview" id="filePreview"></div>
+                <div class="form-group" style="margin-top:15px">
+                    <label>Descripción</label>
+                    <input type="text" name="descripcion" placeholder="Descripción de los archivos...">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="uploadFiles(${inspeccionId})" style="margin-top:10px">📤 Subir Archivos</button>
+            </form>
+        `);
+        
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.style.borderColor = '';
+            document.getElementById('fileInput').files = e.dataTransfer.files;
+            previewFiles(document.getElementById('fileInput'));
+        });
+    }
+
+    function previewFiles(input) {
+        const preview = document.getElementById('filePreview');
+        preview.innerHTML = '';
+        Array.from(input.files).forEach((file, idx) => {
+            const div = document.createElement('div');
+            div.className = 'file-thumb';
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                div.appendChild(img);
+            } else {
+                div.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--gray-100);font-size:0.7em;text-align:center;padding:5px">${file.type.startsWith('video/') ? '🎥' : '📄'}<br>${file.name.substring(0,12)}...</div>`;
+            }
+            preview.appendChild(div);
+        });
+    }
+
+    async function uploadFiles(inspeccionId) {
+        const input = document.getElementById('fileInput');
+        if (input.files.length === 0) { showToast('Seleccioná archivos primero', 'error'); return; }
+        const formData = new FormData();
+        Array.from(input.files).forEach(f => formData.append('archivos', f));
+        formData.append('descripcion', document.querySelector('#uploadForm input[name="descripcion"]').value);
+        
+        try {
+            showToast('Subiendo archivos...', 'info');
+            const res = await fetch(`/api/inspecciones/${inspeccionId}/archivos`, { method: 'POST', body: formData });
+            const result = await res.json();
+            if (result.success) {
+                closeModal();
+                showToast(`${result.archivos.length} archivo(s) subidos correctamente`, 'success');
+                navigate('ver-inspeccion', { id: inspeccionId });
+            } else {
+                showToast(result.error || 'Error al subir', 'error');
+            }
+        } catch (e) { showToast('Error de conexión', 'error'); }
+    }
+
+    function showCambiarEstado(inspeccionId, estadoActual) {
+        openModal('📝 Cambiar Estado / Agregar Seguimiento', `
+            <form onsubmit="cambiarEstado(event, ${inspeccionId})">
+                <div class="form-group">
+                    <label>Nuevo Estado</label>
+                    <select name="nuevo_estado">
+                        <option value="pendiente" ${estadoActual==='pendiente'?'selected':''}>Pendiente</option>
+                        <option value="en_revision" ${estadoActual==='en_revision'?'selected':''}>En Revisión</option>
+                        <option value="derivada_comercial" ${estadoActual==='derivada_comercial'?'selected':''}>Derivada a Comercial</option>
+                        <option value="multa_emitida" ${estadoActual==='multa_emitida'?'selected':''}>Multa Emitida</option>
+                        <option value="resuelta" ${estadoActual==='resuelta'?'selected':''}>Resuelta</option>
+                        <option value="archivada" ${estadoActual==='archivada'?'selected':''}>Archivada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Acción / Motivo *</label>
+                    <input type="text" name="accion" required placeholder="Ej: Derivación a departamento comercial">
+                </div>
+                <div class="form-group">
+                    <label>Comentario</label>
+                    <textarea name="comentario" rows="3" placeholder="Detalle adicional..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">💾 Guardar</button>
+            </form>
+        `);
+    }
+
+    async function cambiarEstado(e, inspeccionId) {
+        e.preventDefault();
+        const data = {};
+        new FormData(e.target).forEach((v, k) => data[k] = v);
+        const res = await fetch(`/api/inspecciones/${inspeccionId}/seguimientos`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeModal();
+            showToast('Estado actualizado', 'success');
+            navigate('ver-inspeccion', { id: inspeccionId });
+        } else showToast(result.error, 'error');
+    }
+
+    function showGenerarMulta(inspeccionId, clienteId) {
+        openModal('⚖️ Generar Multa', `
+            <form onsubmit="generarMulta(event)">
+                <input type="hidden" name="inspeccion_id" value="${inspeccionId}">
+                <input type="hidden" name="cliente_id" value="${clienteId || ''}">
+                <div class="form-grid">
+                    <div class="form-group"><label>Monto ($) *</label><input type="number" name="monto" required step="0.01" min="0" placeholder="Monto de la multa"></div>
+                    <div class="form-group"><label>Fecha Vencimiento</label><input type="date" name="fecha_vencimiento"></div>
+                </div>
+                <div class="form-group"><label>Descripción *</label><textarea name="descripcion" required rows="3" placeholder="Descripción y motivo de la multa..."></textarea></div>
+                <div class="form-group"><label>Observaciones</label><textarea name="observaciones" rows="2"></textarea></div>
+                <button type="submit" class="btn btn-danger">⚖️ Generar Multa</button>
+            </form>
+        `);
+    }
+
+    async function generarMulta(e) {
+        e.preventDefault();
+        const data = {};
+        new FormData(e.target).forEach((v, k) => data[k] = v);
+        data.monto = parseFloat(data.monto);
+        const res = await fetch('/api/multas', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.success) {
+            closeModal();
+            showToast(`Multa ${result.numero_multa} generada`, 'success');
+            navigate('ver-inspeccion', { id: data.inspeccion_id });
+        } else showToast(result.error, 'error');
+    }
+
+    // ============ HELPERS ============
+    function viewImage(src) {
+        openModal('📸 Imagen', `<img src="${src}" style="width:100%;border-radius:8px">`);
+    }
+
+    function viewVideo(src) {
+        openModal('🎥 Video', `<video src="${src}" controls style="width:100%;border-radius:8px"></video>`);
+    }
+
+    function formatDate(d) {
+        if (!d) return '-';
+        const date = new Date(d);
+        return date.toLocaleDateString('es-AR');
+    }
+
+    function formatDateTime(d) {
+        if (!d) return '-';
+        const date = new Date(d);
+        return date.toLocaleDateString('es-AR') + ' ' + date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatEstado(e) {
+        const map = {
+            'pendiente': 'Pendiente', 'en_revision': 'En Revisión', 'derivada_comercial': 'Derivada a Comercial',
+            'multa_emitida': 'Multa Emitida', 'resuelta': 'Resuelta', 'archivada': 'Archivada', 'emitida': 'Emitida', 'pagada': 'Pagada'
+        };
+        return map[e] || e;
+    }
+
+    function formatTipoInspeccion(t) {
+        const map = {
+            'inspeccion_regular': '🔍 Inspección Regular', 'verificacion_fraude': '🚨 Verificación de Fraude',
+            'conexion_clandestina': '⚠️ Conexión Clandestina', 'reclamo': '📞 Reclamo',
+            'corte_servicio': '✂️ Corte de Servicio', 'reconexion': '🔌 Reconexión',
+            'registro_conexion': '📝 Registro de Conexión'
+        };
+        return map[t] || t;
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('visible');
+    }
+
+    function openModal(title, body, footer = '') {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalBody').innerHTML = body;
+        document.getElementById('modalFooter').innerHTML = footer;
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${icons[type] || ''}</span><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login';
+    }
+
+    // Click fuera del modal cierra
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('modalOverlay')) closeModal();
+    });
+
+    // Init
+    init();
+    </script>
+</body>
+</html>

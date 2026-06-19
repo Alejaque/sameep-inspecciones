@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMEEP - Iniciar Sesión</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0284c7 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+        }
+        .logo { text-align: center; margin-bottom: 30px; }
+        .logo h1 { color: #0369a1; font-size: 2.2em; font-weight: 800; }
+        .logo p { color: #64748b; font-size: 0.9em; margin-top: 5px; }
+        .logo .icon { font-size: 3em; margin-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; color: #334155; font-weight: 600; margin-bottom: 8px; font-size: 0.9em; }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1em;
+            transition: all 0.3s;
+            outline: none;
+        }
+        .form-group input:focus { border-color: #0369a1; box-shadow: 0 0 0 3px rgba(3,105,161,0.1); }
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #0369a1, #0284c7);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(3,105,161,0.4); }
+        .error { background: #fef2f2; color: #dc2626; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; display: none; font-size: 0.9em; }
+        .footer { text-align: center; margin-top: 20px; color: #94a3b8; font-size: 0.8em; }
+        .credenciales { background: #f1f5f9; padding: 15px; border-radius: 10px; margin-top: 20px; font-size: 0.85em; }
+        .credenciales strong { color: #0369a1; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <div class="icon">🚰</div>
+            <h1>SAMEEP</h1>
+            <p>Sistema de Gestión de Inspecciones<br>Agua y Cloacas</p>
+        </div>
+        <div class="error" id="error"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>👤 Usuario</label>
+                <input type="text" id="username" placeholder="Ingrese su usuario" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>🔒 Contraseña</label>
+                <input type="password" id="password" placeholder="Ingrese su contraseña" required>
+            </div>
+            <button type="submit" class="btn-login">Iniciar Sesión</button>
+        </form>
+        <div class="credenciales">
+            <p style="margin-bottom:5px;color:#64748b;font-size:0.85em"><strong>👥 Usuarios de prueba:</strong></p>
+            <p>• <strong>admin</strong> / admin123</p>
+            <p>• <strong>inspector1</strong> / inspector123</p>
+            <p>• <strong>jefe1</strong> / jefe123</p>
+            <p>• <strong>comercial1</strong> / comercial123</p>
+        </div>
+        <div class="footer">
+            <p>Sección Inspecciones y Control de Fraudes</p>
+        </div>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'none';
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    errorDiv.textContent = data.error || 'Error al iniciar sesión';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Error de conexión al servidor. Verificá que el servidor esté corriendo.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
